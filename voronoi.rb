@@ -14,9 +14,9 @@ class Voronoi
     @queue = VQueue.new
   end
   
-  def GetEdges(places,width,height)
+  def get_edges(places,width,height)
     @root = nil
-    @places = p
+    @places = places
     @edges = []
     @width, @height = width, height
     
@@ -30,7 +30,7 @@ class Voronoi
     num = 0
     
     until @queue.empty?
-      e = queue.dequeue
+      e = @queue.dequeue
       @ly = e.point.y
       if e.pe
         insert_parabola(e.point)
@@ -45,7 +45,7 @@ class Voronoi
       @lasty = e.y
     end
     
-    finish_edge(root)
+    finish_edge(@root)
     @edges.each do |edge|
       edge.start = edge.neighbor.end if edge.neighbor
     end
@@ -78,7 +78,7 @@ class Voronoi
     
     par = get_parabola_by_x(p.x)
     if par.cEvent
-      queue.remove(par.cEvent)
+      @queue.remove(par.cEvent)
       par.cEvent = nil
     end
     
@@ -105,7 +105,7 @@ class Voronoi
     par.left.right = p1
     
     check_circle(p0)
-    check_cirlce(p2)
+    check_circle(p2)
   end
   
   def remove_parabola(e)
@@ -159,13 +159,13 @@ class Voronoi
       end
     end
     
-    check_cirlce(p0)
-    check_cirlce(p2)
+    check_circle(p0)
+    check_circle(p2)
   end
   
   def finish_edge(n)
     mx = if n.edge.direction.x > 0
-      [width,n.edge.start.x + 10].max
+      [@width,n.edge.start.x + 10].max
     else
       [0,n.edge.start.x - 10].min
     end
@@ -180,8 +180,8 @@ class Voronoi
     left = get_left_child(par)
     right = get_right_child(par)
     
-    p = left.size
-    r = right.size
+    p = left.site
+    r = right.site
     
     dp = 2.0*(p.y - y)
     a1 = 1.0/dp
@@ -228,11 +228,11 @@ class Voronoi
   def get_y(p,x)
     dp = 2.0*(p.y - @ly)
     b1 = -2.0*p.x/dp
-    c1 = @ly+dp/4.0 - p.x**2 / dp
+    c1 = @ly+dp/4.0 + p.x**2 / dp
     return x*x/dp + b1*x + c1
   end
   
-  def check_cirlce(b)
+  def check_circle(b)
     lp = get_left_parent(b)
     rp = get_right_parent(b)
     
@@ -251,14 +251,14 @@ class Voronoi
     
     b.cEvent = e
     e.arch = b
-    queue.enqueue(e)
+    @queue.enqueue(e)
   end
   
   def get_edge_intersection(a,b)
     x = (b.g - a.g) / (a.f - b.f)
     y = a.f * x + a.g
     
-    return nil if x.abs = y.abs > 20*@width
+    return nil if x.abs + y.abs > 20*@width
     return nil if a.direction.x.abs < 0.01 && b.direction.x.abs < 0.01
     return nil if (x - a.start.x) / a.direction.x < 0
     return nil if (y - a.start.y) / a.direction.y < 0

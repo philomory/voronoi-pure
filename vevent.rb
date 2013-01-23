@@ -18,7 +18,7 @@ class VEvent
   end
 
   def <=>(other)
-    y <=> other.y
+    @y <=> other.y
   end
   
 end

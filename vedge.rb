@@ -17,4 +17,9 @@ class VEdge
     @direction = Point.new(b.y-a.y,-(b.x-a.x))
   end
   
+  def end=(p)
+    @end = p
+    puts "(#{@start.x},#{@start.y}) -> (#{@end.x},#{@end.y}): #{self.inspect}" if (@start.x < 0 && @end.x <0) || (@start.y < 0 && @end.y < 0) 
+  end
+  
 end
