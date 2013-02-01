@@ -58,40 +58,83 @@ class Voronoi
       Fiber.yield @edges
     end
     
-    #bind_edges
+    bind_edges
     
     Fiber.yield @edges
   end
   
   def bind_edges
+    remove_external_edges
+    retract_overextended_edges
+    #add_external_borders
+  end
+  
+  def remove_external_edges
     @edges.each do |edge|
-      case boundary_condition(edge)
-      when :internal_edge
-        # Happy!
-      when :fully_external_edge
+      if edge.start.x <= 0       && edge.end.x <= 0      or
+         edge.start.x >= @width  && edge.end.x >= @width or
+         edge.start.y <= 0       && edge.end.y <= 0      or
+         edge.start.y >= @height && edge.end.y >= @height then
         delete_edge(edge)
-      when :partially_internal_edge
-        trim_edge(edge)
       end
     end
   end
   
-  def boundary_condition(edge)
-    if edge.start.x.between?(0,@width)  && edge.start.y.between?(0,@height) and
-       edge.end.x.between?(0,@width)    && edge.end.y.between?(0,@height)
-      :internal_edge
-    elsif edge.start.x <= 0       && edge.end.x <= 0      or
-          edge.start.x >= @width  && edge.end.x >= @width or
-          edge.start.y <= 0       && edge.end.y <= 0      or
-          edge.start.y >= @height && edge.end.y >= @height
-      :fully_external_edge
-    else 
-      :partially_internal_edge
+  def retract_overextended_edges
+    @edges.each do |edge|
+      retract_edge(edge)
     end
   end
   
+  def retract_edge(edge)
+    unless edge.start.x.between?(0,@width)
+      retract_start_of_edge_to_x_boundary(edge)
+    end
+    unless edge.start.y.between?(0,@height)
+      retract_start_of_edge_to_y_boundary(edge)
+    end
+    unless edge.end.x.between?(0,@width)
+      retract_end_of_edge_to_x_boundary(edge)
+    end
+    unless edge.end.y.between?(0,@height)
+      retract_end_of_edge_to_y_boundary(edge)
+    end 
+  end
+  
+  def retract_start_of_edge_to_x_boundary(edge)
+    final_x = [[0,edge.start.x].max,@width].min
+    final_y = edge.end.y + (edge.f * (final_x - edge.end.x))
+    edge.start.x = final_x
+    edge.start.y = final_y
+    edge.flag = true
+  end
+  
+  def retract_start_of_edge_to_y_boundary(edge)
+    final_y = [[0,edge.start.y].max,@height].min
+    final_x = edge.end.x + ((final_y - edge.end.y) / edge.f)
+    edge.start.x = final_x
+    edge.start.y = final_y
+    edge.flag = true
+  end
+  
+  def retract_end_of_edge_to_x_boundary(edge)
+    final_x = [[0,edge.end.x].max,@width].min
+    final_y = edge.start.y + (edge.f * (final_x - edge.start.x))
+    edge.end.x = final_x
+    edge.end.y = final_y
+    edge.flag = true
+  end
+  
+  def retract_end_of_edge_to_y_boundary(edge)
+    final_y = [[0,edge.end.y].max,@height].min
+    final_x = edge.start.x + ((final_y - edge.start.y) / edge.f)
+    edge.end.x = final_x
+    edge.end.y = final_y
+    edge.flag = true
+  end
+  
   def delete_edge(edge)
-    #@edges.delete(edge)
+    @edges.delete(edge)
     puts "Deleted edge: #{edge}"
   end
   

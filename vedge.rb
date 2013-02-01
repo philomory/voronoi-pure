@@ -23,7 +23,7 @@ class VEdge
   def end=(p)
     @end = p
     @flag = true
-    binding.pry if p.y.abs >= 10000 && (p.y * @start.y < 0)
+    #binding.pry #if p.y.abs >= 10000 && (p.y * @start.y < 0)
   end
 
 end
