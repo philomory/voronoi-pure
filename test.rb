@@ -12,7 +12,7 @@ require 'fiber'
 class VoronoiTestWin < Gosu::Window
   def initialize
     super(1000,800,false)
-    @vertex_count = 200
+    @vertex_count = 20
     setup_diagram
   end
   
@@ -136,6 +136,7 @@ class VoronoiTestWin < Gosu::Window
     c1 = 0x88888888
     c2 = Gosu::Color::GREEN
     @edges.each do |edge|
+      next if edge.is_a? BEdge
       c = (edge == $finished_edge || edge.flag) ? c2 : c1
       draw_line(edge.left.x,edge.left.y,c,edge.right.x,edge.right.y,c)
     end

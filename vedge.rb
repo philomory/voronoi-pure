@@ -14,16 +14,37 @@ class VEdge
   def initialize(s,a,b)
     #binding.pry if s.y.abs > 20608
     @flag = true
-    @left, @right, @start = a, b, s
+    @left, @right, self.start = a, b, s
     @f = (b.x - a.x) / (a.y - b.y)
     @g = s.y - @f*s.x
     @direction = Point.new(b.y-a.y,-(b.x-a.x))
   end
   
   def end=(p)
+    if @end
+      @end.edges_that_meet_here.delete(self)
+    end
     @end = p
+    @end.edges_that_meet_here.push(self)
     @flag = true
     #binding.pry #if p.y.abs >= 10000 && (p.y * @start.y < 0)
+  end
+  
+  def start=(p)
+    if @start
+      @start.edges_that_meet_here.delete(self)
+    end
+    @start = p
+    @start.edges_that_meet_here.push(self)
+    @flag = true
+  end
+
+  def sites
+    [@left,@right]
+  end
+  
+  def points
+    [@start, @end]
   end
 
 end

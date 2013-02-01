@@ -8,6 +8,7 @@ require_relative 'vedge'
 require_relative 'vevent'
 require_relative 'vparabola'
 require_relative 'vqueue'
+require_relative 'bedge'
 
 class Voronoi
   def initialize
@@ -51,10 +52,10 @@ class Voronoi
       Fiber.yield @edges
     end
     
-    finish_edge(@root)
+    final_edge(@root)
     @edges.each do |edge|
       edge.start = edge.neighbor.end if edge.neighbor
-      $finished_edge = edge
+      $finaled_edge = edge
       Fiber.yield @edges
     end
     
@@ -66,7 +67,7 @@ class Voronoi
   def bind_edges
     remove_external_edges
     retract_overextended_edges
-    #add_external_borders
+    add_external_borders
   end
   
   def remove_external_edges
@@ -104,32 +105,36 @@ class Voronoi
   def retract_start_of_edge_to_x_boundary(edge)
     final_x = [[0,edge.start.x].max,@width].min
     final_y = edge.end.y + (edge.f * (final_x - edge.end.x))
-    edge.start.x = final_x
-    edge.start.y = final_y
+    #edge.start.x = final_x
+    #edge.start.y = final_y
+    edge.start = Point.new(final_x,final_y)
     edge.flag = true
   end
   
   def retract_start_of_edge_to_y_boundary(edge)
     final_y = [[0,edge.start.y].max,@height].min
     final_x = edge.end.x + ((final_y - edge.end.y) / edge.f)
-    edge.start.x = final_x
-    edge.start.y = final_y
+    #edge.start.x = final_x
+    #edge.start.y = final_y
+    edge.start = Point.new(final_x,final_y)
     edge.flag = true
   end
   
   def retract_end_of_edge_to_x_boundary(edge)
     final_x = [[0,edge.end.x].max,@width].min
     final_y = edge.start.y + (edge.f * (final_x - edge.start.x))
-    edge.end.x = final_x
-    edge.end.y = final_y
+    #edge.end.x = final_x
+    #edge.end.y = final_y
+    edge.end = Point.new(final_x,final_y)
     edge.flag = true
   end
   
   def retract_end_of_edge_to_y_boundary(edge)
     final_y = [[0,edge.end.y].max,@height].min
     final_x = edge.start.x + ((final_y - edge.start.y) / edge.f)
-    edge.end.x = final_x
-    edge.end.y = final_y
+    #edge.end.x = final_x
+    #edge.end.y = final_y
+    edge.end = Point.new(final_x,final_y)
     edge.flag = true
   end
   
@@ -138,13 +143,68 @@ class Voronoi
     puts "Deleted edge: #{edge}"
   end
   
-  def trim_edge(edge)
-    if edge.start.x.between?(0,@width)  && edge.start.y.between?(0,@height) or
-       edge.end.x.between?(0,@width)    && edge.end.y.between?(0,@height)
-      puts "Need to trim edge: #{edge}"
-    else
-      puts "Need to double-trim edge: #{edge}" #binding.pry
+  def add_external_borders
+    corners = find_or_create_boundary_corners
+    trace_left_edge(corners[:tl],corners[:bl])
+    trace_bottom_edge(corners[:bl],corners[:br])
+    trace_right_edge(corners[:br],corners[:tr])
+    trace_top_edge(corners[:tr],corners[:tl])
+  end
+  
+  def trace_left_edge(start,final)
+    points = find_all_corners.select {|p| p.x == 0}
+    points.push(start) unless points.include?(start)
+    points.push(final) unless points.include?(final)
+    points.sort_by!(&:y).reverse!
+    trace_edge(points)
+  end
+  
+  def trace_right_edge(start,final)
+    points = find_all_corners.select {|p| p.x == @width}
+    points.push(start) unless points.include?(start)
+    points.push(final) unless points.include?(final)
+    points.sort_by!(&:y)
+    trace_edge(points)
+  end
+  
+  def trace_top_edge(start,final)
+    points = find_all_corners.select {|p| p.y == 0}
+    points.push(start) unless points.include?(start)
+    points.push(final) unless points.include?(final)
+    points.sort_by!(&:x).reverse!
+    trace_edge(points)
+  end
+  
+  def trace_bottom_edge(start,final)
+    points = find_all_corners.select {|p| p.y == @height}
+    points.push(start) unless points.include?(start)
+    points.push(final) unless points.include?(final)
+    points.sort_by!(&:x)
+    trace_edge(points)
+  end
+  
+  def trace_edge(points)
+    points.each_cons(2) do |a,b|
+      next if (a.edges_that_meet_here.map(&:points).include? b)
+      site = (a.edges_that_meet_here.map(&:sites) & b.edges_that_meet_here.map(&:sites)).first
+      edge = BEdge.new(site,a,b)
+      @edges << edge
     end
+  end
+    
+  
+  def find_all_corners
+    @edges.map {|e| [e.start,e.end] }.flatten
+  end
+  
+  def find_or_create_boundary_corners
+    all_corners = find_all_corners
+    top_left     = all_corners.select {|c| c.x == 0      && c.y == 0       }.first || Point.new(0,            0)
+    top_right    = all_corners.select {|c| c.x == @width && c.y == 0       }.first || Point.new(@width,       0)
+    bottom_left  = all_corners.select {|c| c.x == 0      && c.y == @height }.first || Point.new(0,      @height)
+    bottom_right = all_corners.select {|c| c.x == @width && c.y == @height }.first || Point.new(@width, @height)
+    corners = {:tl => top_left, :tr => top_right, :bl => bottom_left, :br => bottom_right }
+    corners
   end
   
   def insert_parabola(p)
@@ -265,7 +325,7 @@ class Voronoi
     check_circle(p2)
   end
   
-  def finish_edge(node)
+  def final_edge(node)
     mx = if node.edge.direction.x > 0
       [@width,node.edge.start.x + 10].max
     else
@@ -276,8 +336,8 @@ class Voronoi
     
     Fiber.yield @edges
     
-    finish_edge(node.left) unless node.left.isLeaf
-    finish_edge(node.right) unless node.right.isLeaf
+    final_edge(node.left) unless node.left.isLeaf
+    final_edge(node.right) unless node.right.isLeaf
   end
   
   def get_x_of_edge(par,y)
