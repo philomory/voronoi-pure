@@ -19,6 +19,11 @@ class Voronoi
     @places = places
     @edges = []
     @width, @height = width, height
+    @parabolas = []
+    
+    unless @places.uniq(&:x).size == @places.size && @places.uniq(&:y).size == @places.size
+      raise ArgumentError.new("Generator points may not share x or y coordinates.")
+    end 
     
     @queue.clear
     @places.each do |place|
@@ -43,19 +48,66 @@ class Voronoi
       end
       
       @lasty = e.y
+      Fiber.yield @edges
     end
     
     finish_edge(@root)
     @edges.each do |edge|
       edge.start = edge.neighbor.end if edge.neighbor
+      $finished_edge = edge
+      Fiber.yield @edges
     end
     
-    @edges
+    #bind_edges
+    
+    Fiber.yield @edges
+  end
+  
+  def bind_edges
+    @edges.each do |edge|
+      case boundary_condition(edge)
+      when :internal_edge
+        # Happy!
+      when :fully_external_edge
+        delete_edge(edge)
+      when :partially_internal_edge
+        trim_edge(edge)
+      end
+    end
+  end
+  
+  def boundary_condition(edge)
+    if edge.start.x.between?(0,@width)  && edge.start.y.between?(0,@height) and
+       edge.end.x.between?(0,@width)    && edge.end.y.between?(0,@height)
+      :internal_edge
+    elsif edge.start.x <= 0       && edge.end.x <= 0      or
+          edge.start.x >= @width  && edge.end.x >= @width or
+          edge.start.y <= 0       && edge.end.y <= 0      or
+          edge.start.y >= @height && edge.end.y >= @height
+      :fully_external_edge
+    else 
+      :partially_internal_edge
+    end
+  end
+  
+  def delete_edge(edge)
+    #@edges.delete(edge)
+    puts "Deleted edge: #{edge}"
+  end
+  
+  def trim_edge(edge)
+    if edge.start.x.between?(0,@width)  && edge.start.y.between?(0,@height) or
+       edge.end.x.between?(0,@width)    && edge.end.y.between?(0,@height)
+      puts "Need to trim edge: #{edge}"
+    else
+      puts "Need to double-trim edge: #{edge}" #binding.pry
+    end
   end
   
   def insert_parabola(p)
     unless @root
       @root = VParabola.new(p)
+      @parabolas << @root
       @fp = p
       return
     end
@@ -64,6 +116,8 @@ class Voronoi
       @root.isLeaf = false
       @root.left = VParabola.new(@fp)
       @root.right = VParabola.new(p)
+      @parabolas << @root.right
+      @parabolas << @root.left
       s = Point.new((p.x+@fp.x)/2, @height)
       
       if p.x>@fp.x
@@ -97,12 +151,15 @@ class Voronoi
     p1 = VParabola.new(p)
     p2 = VParabola.new(par.site)
     
+    
     par.right = p2
     par.left = VParabola.new
     par.left.edge = el
     
     par.left.left = p0
     par.left.right = p1
+    
+    @parabolas += [p0,p1,p2,par.left]
     
     check_circle(p0)
     check_circle(p2)
@@ -125,6 +182,8 @@ class Voronoi
       @queue.remove(p2.cEvent)
       p2.cEvent = nil
     end
+    
+    @parabolas -= [p0,p1,p2]
     
     p = Point.new(e.point.x,get_y(p1.site,e.point.x))
     
@@ -163,17 +222,19 @@ class Voronoi
     check_circle(p2)
   end
   
-  def finish_edge(n)
-    mx = if n.edge.direction.x > 0
-      [@width,n.edge.start.x + 10].max
+  def finish_edge(node)
+    mx = if node.edge.direction.x > 0
+      [@width,node.edge.start.x + 10].max
     else
-      [0,n.edge.start.x - 10].min
+      [0,node.edge.start.x - 10].min
     end
     
-    n.edge.end = Point.new(mx,n.edge.f*mx + n.edge.g)
+    node.edge.end = Point.new(mx,node.edge.f*mx + node.edge.g)
     
-    finish_edge(n.left) unless n.left.isLeaf
-    finish_edge(n.right) unless n.right.isLeaf
+    Fiber.yield @edges
+    
+    finish_edge(node.left) unless node.left.isLeaf
+    finish_edge(node.right) unless node.right.isLeaf
   end
   
   def get_x_of_edge(par,y)
@@ -191,7 +252,7 @@ class Voronoi
     dp = 2.0*(r.y - y)
     a2 = 1.0/dp
     b2 = -2.0*r.x/dp
-    c2 = y+dp/4.0 +r.x**2.0 / dp
+    c2 = y + dp/4.0 + r.x**2 / dp
     
     a = a1 - a2
     b = b1 - b2
@@ -200,11 +261,14 @@ class Voronoi
     disc = b**2 - 4*a*c
     x1 = (-b + Math.sqrt(disc)) / (2 * a)
     x2 = (-b - Math.sqrt(disc)) / (2 * a)
-    
-    ry = if p.y < r.y
-      [x1,x2].max
-    else
-      [x1,x2].min
+    begin
+      ry = if p.y < r.y
+        [x1,x2].max
+      else
+        [x1,x2].min
+      end
+    rescue ArgumentError
+      binding.pry
     end
     
     ry
@@ -228,7 +292,7 @@ class Voronoi
   def get_y(p,x)
     dp = 2.0*(p.y - @ly)
     b1 = -2.0*p.x/dp
-    c1 = @ly+dp/4.0 + p.x**2 / dp
+    c1 = @ly+dp/4.0 + p.x*p.x/dp
     return x*x/dp + b1*x + c1
   end
   
@@ -245,6 +309,7 @@ class Voronoi
     return if s.nil?
     
     d = a.site.distance_to(s)
+    #return if d > 5000
     return if s.y - d >= @ly
     
     e = VEvent.new(Point.new(s.x,s.y-d),false)
@@ -258,7 +323,8 @@ class Voronoi
     x = (b.g - a.g) / (a.f - b.f)
     y = a.f * x + a.g
     
-    return nil if x.abs + y.abs > 20*@width
+    #return nil if a.f == b.f
+    return nil if x.abs + y.abs > 20 * @width
     return nil if a.direction.x.abs < 0.01 && b.direction.x.abs < 0.01
     return nil if (x - a.start.x) / a.direction.x < 0
     return nil if (y - a.start.y) / a.direction.y < 0

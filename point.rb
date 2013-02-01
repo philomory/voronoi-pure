@@ -1,5 +1,5 @@
 class Point
-  attr_accessor :x, :y
+  attr_accessor :x, :y, :flag
   def initialize(x,y)
     @x, @y = x.to_f, y.to_f
     raise ArgumentError.new if (@x.nan? || @y.nan?)

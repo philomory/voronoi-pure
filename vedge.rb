@@ -9,8 +9,11 @@ class VEdge
   attr_accessor :left, :right
   attr_accessor :f, :g
   attr_accessor :neighbor
+  attr_accessor :flag
   
   def initialize(s,a,b)
+    #binding.pry if s.y.abs > 20608
+    @flag = true
     @left, @right, @start = a, b, s
     @f = (b.x - a.x) / (a.y - b.y)
     @g = s.y - @f*s.x
@@ -19,7 +22,8 @@ class VEdge
   
   def end=(p)
     @end = p
-    puts "(#{@start.x},#{@start.y}) -> (#{@end.x},#{@end.y}): #{self.inspect}" if (@start.x < 0 && @end.x <0) || (@start.y < 0 && @end.y < 0) 
+    @flag = true
+    binding.pry if p.y.abs >= 10000 && (p.y * @start.y < 0)
   end
-  
+
 end
