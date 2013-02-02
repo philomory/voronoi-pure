@@ -103,19 +103,20 @@ class Voronoi
   def bind_edges
     remove_external_edges
     retract_overextended_edges
-    remove_external_edges # again, to catch weird edge case.
     add_external_borders
   end
   
   def remove_external_edges
+    to_be_deleted = []
     @edges.each do |edge|
       if edge.start.x <= 0       && edge.end.x <= 0      or
          edge.start.x >= @width  && edge.end.x >= @width or
          edge.start.y <= 0       && edge.end.y <= 0      or
          edge.start.y >= @height && edge.end.y >= @height then
-        delete_edge(edge)
+        to_be_deleted << edge
       end
     end
+    to_be_deleted.each {|edge| delete_edge(edge) }
   end
   
   def retract_overextended_edges
@@ -176,9 +177,11 @@ class Voronoi
   end
   
   def delete_edge(edge)
-    edge.delete
-    @edges.delete(edge)
-    puts "Deleted edge: #{edge}"
+    if edge.is_a?(VEdge)
+      edge.delete
+      @edges.delete(edge)
+      puts "Deleted edge: #{edge}"
+    end
   end
   
   def add_external_borders
