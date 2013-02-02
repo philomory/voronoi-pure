@@ -46,5 +46,10 @@ class VEdge
   def points
     [@start, @end]
   end
+  
+  def delete
+    @start.edges_that_meet_here.delete(self)
+    @end.edges_that_meet_here.delete(self)
+  end
 
 end
