@@ -4,6 +4,8 @@
 # Converted to Ruby by Adam Gardner
 
 require_relative 'point'
+require_relative 'site'
+require_relative 'vertex'
 require_relative 'vedge'
 require_relative 'vevent'
 require_relative 'vparabola'
@@ -27,7 +29,7 @@ class Voronoi
     @parabolas = []
     
     unless @places.uniq(&:x).size == @places.size && @places.uniq(&:y).size == @places.size
-      raise ArgumentError.new("Generator points may not share x or y coordinates.")
+     # raise ArgumentError.new("Generator points may not share x or y coordinates.")
     end 
     
     @queue.clear
@@ -78,6 +80,7 @@ class Voronoi
     @places.each do |place|
       #binding.pry
       edges = @edges.select {|e| e.sites.include? place }
+      place.connections = edges.select {|e| e.is_a? VEdge }
       edge = edges.pop
       first_point = edge.start
       next_point = edge.end
@@ -145,7 +148,7 @@ class Voronoi
     final_y = edge.end.y + (edge.f * (final_x - edge.end.x))
     #edge.start.x = final_x
     #edge.start.y = final_y
-    edge.start = Point.new(final_x,final_y)
+    edge.start = Vertex.new(final_x,final_y)
     edge.flag = true
   end
   
@@ -154,7 +157,7 @@ class Voronoi
     final_x = edge.end.x + ((final_y - edge.end.y) / edge.f)
     #edge.start.x = final_x
     #edge.start.y = final_y
-    edge.start = Point.new(final_x,final_y)
+    edge.start = Vertex.new(final_x,final_y)
     edge.flag = true
   end
   
@@ -163,7 +166,7 @@ class Voronoi
     final_y = edge.start.y + (edge.f * (final_x - edge.start.x))
     #edge.end.x = final_x
     #edge.end.y = final_y
-    edge.end = Point.new(final_x,final_y)
+    edge.end = Vertex.new(final_x,final_y)
     edge.flag = true
   end
   
@@ -172,7 +175,7 @@ class Voronoi
     final_x = edge.start.x + ((final_y - edge.start.y) / edge.f)
     #edge.end.x = final_x
     #edge.end.y = final_y
-    edge.end = Point.new(final_x,final_y)
+    edge.end = Vertex.new(final_x,final_y)
     edge.flag = true
   end
   
@@ -228,7 +231,7 @@ class Voronoi
     points.each_cons(2) do |a,b|
       #binding.pry
       next if (a.edges_that_meet_here.map(&:points).include? b)
-      midpoint = Point.new((a.x + b.x)/2,(a.y + b.y)/2)
+      midpoint = Vertex.new((a.x + b.x)/2,(a.y + b.y)/2)
       site = @places.min_by {|s| s.distance_to midpoint }
       #if a.edges_that_meet_here.empty? # First corner
       #  site = b.edges_that_meet_here.map(&:sites).flatten.min_by {|s| s.distance_to a}
@@ -247,10 +250,10 @@ class Voronoi
   
   def find_or_create_boundary_corners
     all_corners = find_all_corners
-    top_left     = all_corners.select {|c| c.x == 0      && c.y == 0       }.first || Point.new(0,            0)
-    top_right    = all_corners.select {|c| c.x == @width && c.y == 0       }.first || Point.new(@width,       0)
-    bottom_left  = all_corners.select {|c| c.x == 0      && c.y == @height }.first || Point.new(0,      @height)
-    bottom_right = all_corners.select {|c| c.x == @width && c.y == @height }.first || Point.new(@width, @height)
+    top_left     = all_corners.select {|c| c.x == 0      && c.y == 0       }.first || Vertex.new(0,            0)
+    top_right    = all_corners.select {|c| c.x == @width && c.y == 0       }.first || Vertex.new(@width,       0)
+    bottom_left  = all_corners.select {|c| c.x == 0      && c.y == @height }.first || Vertex.new(0,      @height)
+    bottom_right = all_corners.select {|c| c.x == @width && c.y == @height }.first || Vertex.new(@width, @height)
     corners = {:tl => top_left, :tr => top_right, :bl => bottom_left, :br => bottom_right }
     corners
   end
@@ -269,7 +272,7 @@ class Voronoi
       @root.right = VParabola.new(p)
       @parabolas << @root.right
       @parabolas << @root.left
-      s = Point.new((p.x+@fp.x)/2, @height)
+      s = Vertex.new((p.x+@fp.x)/2, @height)
       
       if p.x>@fp.x
         @root.edge = VEdge.new(s,@fp,p)
@@ -287,7 +290,7 @@ class Voronoi
       par.cEvent = nil
     end
     
-    start = Point.new(p.x,get_y(par.site,p.x))
+    start = Vertex.new(p.x,get_y(par.site,p.x))
     
     el = VEdge.new(start,par.site,p)
     er = VEdge.new(start,p,par.site)
@@ -336,7 +339,7 @@ class Voronoi
     
     @parabolas -= [p0,p1,p2]
     
-    p = Point.new(e.point.x,get_y(p1.site,e.point.x))
+    p = Vertex.new(e.point.x,get_y(p1.site,e.point.x))
     
     @lasty = e.point.y
     
@@ -380,7 +383,7 @@ class Voronoi
       [0,node.edge.start.x - 10].min
     end
     
-    node.edge.end = Point.new(mx,node.edge.f*mx + node.edge.g)
+    node.edge.end = Vertex.new(mx,node.edge.f*mx + node.edge.g)
     
     Fiber.yield @edges unless Fiber.current.equal?($root_fiber)
     
@@ -463,7 +466,7 @@ class Voronoi
     #return if d > 5000
     return if s.y - d >= @ly
     
-    e = VEvent.new(Point.new(s.x,s.y-d),false)
+    e = VEvent.new(Vertex.new(s.x,s.y-d),false)
     
     b.cEvent = e
     e.arch = b
@@ -482,7 +485,7 @@ class Voronoi
     return nil if (x - b.start.x) / b.direction.x < 0
     return nil if (y - b.start.y) / b.direction.y < 0
     
-    Point.new(x,y)
+    Vertex.new(x,y)
   end
   
   def get_left(n)

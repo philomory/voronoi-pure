@@ -16,7 +16,7 @@ include Glu
 class VoronoiTestWin < Gosu::Window
   def initialize
     super(1000,800,false)
-    @vertex_count = 10
+    @vertex_count = 50
     setup_diagram
   end
   
@@ -28,11 +28,11 @@ class VoronoiTestWin < Gosu::Window
     @session_done = false
     @paused = true
     @v = Voronoi.new()
-    @vertices = Array.new(@vertex_count) { Point.new(rand(980)+10,rand(789)+10) }
+    @vertices = Array.new(@vertex_count) { Site.new(rand(980)+10,rand(789)+10) }
     while @vertices.uniq! {|v| v.y } || @vertices.uniq! {|v| v.x }
-      @vertices += Array.new(@vertex_count - @vertices.count) { Point.new(rand(980)+10,rand(789)+10) }
+      @vertices += Array.new(@vertex_count - @vertices.count) { Site.new(rand(980)+10,rand(789)+10) }
     end
-    #@vertices += [Point.new(500,350),Point.new(500,400),Point.new(500,450),Point.new(500,500)]
+    #@vertices += [Site.new(500,350),Site.new(500,400),Site.new(500,450),Site.new(500,500)]
     
     @fiber = Fiber.new do
       @v.get_edges(@vertices,1000,800)

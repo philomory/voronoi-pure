@@ -24,9 +24,9 @@ class VoronoiTestWin < Gosu::Window
     @session_done = false
     @paused = true
     @v = Voronoi.new()
-    @places = Array.new(@vertex_count) { Point.new(rand(980)+10,rand(789)+10) }
-    while @places.uniq! {|v| v.y } || @places.uniq! {|v| v.x }
-      @places += Array.new(@vertex_count - @places.count) { Point.new(rand(980)+10,rand(789)+10) }
+    @places = Array.new(@vertex_count) { Site.new(rand(980)+10,rand(789)+10) }
+    while @places.uniq! {|v| v.x } || @places.uniq! {|v| v.y }
+      @places += Array.new(@vertex_count - @places.count) { Site.new(rand(980)+10,rand(789)+10) }
     end
     
     @edges = @v.get_edges(@places,1000,800)
@@ -64,7 +64,7 @@ class VoronoiTestWin < Gosu::Window
       end
       x /= region.vertices.length
       y /= region.vertices.length
-      relaxed_vertices << Point.new(x,y)
+      relaxed_vertices << Site.new(x,y)
     end
     @v = Voronoi.new()
     @places = relaxed_vertices
